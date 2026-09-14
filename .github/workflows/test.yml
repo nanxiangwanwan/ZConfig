@@ -16,4 +16,7 @@ jobs:
         with:
           go-version: "1.25.x"
           cache: true
-      - run: go test -race ./...
+      - run: |
+          go mod tidy
+          cat go.mod
+          go test -race ./...
