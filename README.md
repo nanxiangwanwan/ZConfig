@@ -98,6 +98,16 @@ JSON 可以是一个对象或对象数组。`vType` 只能是 `number`、`string
 
 `readOnly: true` 是返回给使用者的属性元数据，后台可据此禁止编辑；ZConfig 的 `Set` 不会强制限制写入，仍可正常保存到 MongoDB。
 
+常用 `RegExp` 可直接使用：
+
+```go
+zconfig.RegExpEmail          // 邮箱
+zconfig.RegExpNonNegativeInt // 0 或正整数
+zconfig.RegExpPositiveInt    // 不包含 0 的正整数
+zconfig.RegExpFloat          // 浮点数字符串，例如 -1.5、.5
+zconfig.RegExpHTTPSURL       // HTTPS URL
+```
+
 ## 读取和写入
 
 ```go

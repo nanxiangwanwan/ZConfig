@@ -2,6 +2,7 @@ package zconfig
 
 import (
 	"errors"
+	"regexp"
 	"testing"
 )
 
@@ -60,5 +61,31 @@ func TestRegisterJSONReadOnly(t *testing.T) {
 	attributes := z.GetConfigAttributes()
 	if len(attributes) != 1 || !attributes[0].ReadOnly {
 		t.Fatalf("got %#v, want one read-only attribute", attributes)
+	}
+}
+
+func TestCommonRegExps(t *testing.T) {
+	tests := []struct {
+		name    string
+		pattern string
+		match   string
+		miss    string
+	}{
+		{"email", RegExpEmail, "name@example.com", "name@example"},
+		{"non-negative int", RegExpNonNegativeInt, "0", "01"},
+		{"positive int", RegExpPositiveInt, "12", "0"},
+		{"float", RegExpFloat, "-1.5", "1e3"},
+		{"https url", RegExpHTTPSURL, "https://example.com/a?q=1", "http://example.com"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			re := regexp.MustCompile(test.pattern)
+			if !re.MatchString(test.match) {
+				t.Fatalf("%q should match", test.match)
+			}
+			if re.MatchString(test.miss) {
+				t.Fatalf("%q should not match", test.miss)
+			}
+		})
 	}
 }
