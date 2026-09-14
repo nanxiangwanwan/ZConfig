@@ -272,6 +272,7 @@ func (z *ZConfig) GetByType(mask int32) (*Values, error) {
 		if attribute.Type&mask != 0 {
 			keys = append(keys, key)
 		}
+	}
 	z.mu.RUnlock()
 	sort.Strings(keys)
 	return z.getKeys(context.Background(), keys)
@@ -284,6 +285,7 @@ func (z *ZConfig) GetByGroup(group string) (*Values, error) {
 		if attribute.Group == group {
 			keys = append(keys, key)
 		}
+	}
 	z.mu.RUnlock()
 	sort.Strings(keys)
 	return z.getKeys(context.Background(), keys)
