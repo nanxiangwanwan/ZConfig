@@ -22,8 +22,8 @@ type ConfigAttribute struct {
 	VType        ValueType `bson:"vType" json:"vType"`
 	DefaultValue any       `bson:"defaultValue" json:"defaultValue"`
 	IsRequired   bool      `bson:"isRequired" json:"isRequired"`
-	// ReadOnly prevents writes made through SetFromAdmin. Code may still use
-	// Set to persist a value or SetLocal to keep a process-local override.
+	// ReadOnly is metadata for callers such as management backends. ZConfig
+	// does not enforce it; callers decide whether a value may be changed.
 	ReadOnly     bool      `bson:"readOnly" json:"readOnly"`
 	RegExp       string    `bson:"regExp" json:"regExp"`
 	// CacheTime is the local cache lifetime in seconds. Zero means that the
