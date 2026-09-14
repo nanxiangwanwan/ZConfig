@@ -51,3 +51,27 @@ func TestRegexp(t *testing.T) {
 		t.Fatalf("got %v, want ErrRegExpMismatch", err)
 	}
 }
+
+func TestReadOnlyRejectsAdminWriteAndAllowsLocalValue(t *testing.T) {
+	z := newZConfig(nil, nil, false)
+	if err := z.Register(ConfigAttribute{
+		Key:      "server_version",
+		VType:    ValueTypeString,
+		ReadOnly: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := z.SetFromAdmin("server_version", "1.0.0"); !errors.Is(err, ErrReadOnly) {
+		t.Fatalf("got %v, want ErrReadOnly", err)
+	}
+	if err := z.SetLocal("server_version", "1.0.0"); err != nil {
+		t.Fatal(err)
+	}
+	value, err := z.GetString("server_version")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value != "1.0.0" {
+		t.Fatalf("got %q, want 1.0.0", value)
+	}
+}

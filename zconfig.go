@@ -31,6 +31,7 @@ type ZConfig struct {
 	mu         sync.RWMutex
 	attributes map[string]ConfigAttribute
 	cache      map[string]cacheValue
+	local      map[string]any
 	known      map[string]bool
 	exists     map[string]bool
 	keyLocks   sync.Map
@@ -84,6 +85,7 @@ func newZConfig(collection *mongo.Collection, client *mongo.Client, owned bool) 
 		ownedClient: owned,
 		attributes:  make(map[string]ConfigAttribute),
 		cache:       make(map[string]cacheValue),
+		local:       make(map[string]any),
 		known:       make(map[string]bool),
 		exists:      make(map[string]bool),
 	}
@@ -187,6 +189,9 @@ func (z *ZConfig) GetAnyContext(ctx context.Context, key string) (any, error) {
 	attribute, err := z.attribute(key)
 	if err != nil {
 		return nil, err
+	}
+	if value, ok := z.localValue(key); ok {
+		return value, nil
 	}
 	if value, ok := z.cached(attribute); ok {
 		return value, nil
@@ -309,6 +314,10 @@ func (z *ZConfig) getKeys(parent context.Context, keys []string) (*Values, error
 			return nil, err
 		}
 		attributes[key] = attribute
+		if value, ok := z.localValue(key); ok {
+			result[key] = value
+			continue
+		}
 		if value, ok := z.cached(attribute); ok {
 			result[key] = value
 			continue
@@ -368,6 +377,64 @@ func (z *ZConfig) SetString(key, value string) error { return z.Set(key, value) 
 func (z *ZConfig) SetInt64(key string, value int64) error { return z.Set(key, value) }
 func (z *ZConfig) SetBool(key string, value bool) error { return z.Set(key, value) }
 
+// SetFromAdmin persists a value written by a management backend. It rejects
+// attributes marked ReadOnly. Code should use Set or SetLocal instead.
+func (z *ZConfig) SetFromAdmin(key string, value any) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultOperationTimeout)
+	defer cancel()
+	return z.SetFromAdminContext(ctx, key, value)
+}
+
+func (z *ZConfig) SetFromAdminString(key, value string) error { return z.SetFromAdmin(key, value) }
+func (z *ZConfig) SetFromAdminInt64(key string, value int64) error { return z.SetFromAdmin(key, value) }
+func (z *ZConfig) SetFromAdminBool(key string, value bool) error { return z.SetFromAdmin(key, value) }
+
+func (z *ZConfig) SetFromAdminContext(ctx context.Context, key string, value any) error {
+	attribute, err := z.attribute(key)
+	if err != nil {
+		return err
+	}
+	if attribute.ReadOnly {
+		return fmt.Errorf("config %q: %w", key, ErrReadOnly)
+	}
+	return z.SetContext(ctx, key, value)
+}
+
+// SetLocal applies a process-local value without writing MongoDB. Local values
+// take precedence over MongoDB and remain until ClearLocal is called.
+func (z *ZConfig) SetLocal(key string, value any) error {
+	attribute, err := z.attribute(key)
+	if err != nil {
+		return err
+	}
+	normalized, err := validateValue(attribute, value)
+	if err != nil {
+		return fmt.Errorf("config %q: %w", key, err)
+	}
+	z.mu.Lock()
+	z.local[key] = normalized
+	z.mu.Unlock()
+	return nil
+}
+
+func (z *ZConfig) SetLocalString(key, value string) error { return z.SetLocal(key, value) }
+func (z *ZConfig) SetLocalInt64(key string, value int64) error { return z.SetLocal(key, value) }
+func (z *ZConfig) SetLocalBool(key string, value bool) error { return z.SetLocal(key, value) }
+
+// ClearLocal removes one process-local override. The next read uses the cache
+// or reloads MongoDB as usual.
+func (z *ZConfig) ClearLocal(key string) {
+	z.mu.Lock()
+	delete(z.local, key)
+	z.mu.Unlock()
+}
+
+func (z *ZConfig) ClearLocalAll() {
+	z.mu.Lock()
+	z.local = make(map[string]any)
+	z.mu.Unlock()
+}
+
 func (z *ZConfig) SetContext(ctx context.Context, key string, value any) error {
 	attribute, err := z.attribute(key)
 	if err != nil {
@@ -388,6 +455,7 @@ func (z *ZConfig) SetContext(ctx context.Context, key string, value any) error {
 		return fmt.Errorf("save config %q: %w", key, err)
 	}
 	z.mu.Lock()
+	delete(z.local, key)
 	z.known[key], z.exists[key] = true, true
 	if attribute.CacheTime >= 0 {
 		z.cache[key] = cacheValue{Value: normalized, LoadedAt: time.Now(), Exists: true}
@@ -466,7 +534,8 @@ func (z *ZConfig) GetConfigAttributes() []ConfigAttribute {
 	missing := make(map[string]bool, len(z.attributes))
 	for key, attribute := range z.attributes {
 		result = append(result, attribute)
-		missing[key] = attribute.IsRequired && z.known[key] && !z.exists[key]
+		_, hasLocal := z.local[key]
+		missing[key] = attribute.IsRequired && z.known[key] && !z.exists[key] && !hasLocal
 	}
 	z.mu.RUnlock()
 	sort.Slice(result, func(i, j int) bool {
@@ -511,6 +580,13 @@ func (z *ZConfig) cached(attribute ConfigAttribute) (any, bool) {
 		return item.Value, true
 	}
 	return nil, false
+}
+
+func (z *ZConfig) localValue(key string) (any, bool) {
+	z.mu.RLock()
+	value, ok := z.local[key]
+	z.mu.RUnlock()
+	return value, ok
 }
 
 func (z *ZConfig) ensureOpen() error {

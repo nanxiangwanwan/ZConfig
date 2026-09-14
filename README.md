@@ -96,6 +96,8 @@ err := zc.RegisterJSONFile("config.json")
 
 JSON 可以是一个对象或对象数组。`vType` 只能是 `number`、`string`、`boolean`；`number` 在库内统一为 `int64`。
 
+`readOnly: true` 的配置仍会返回给后台展示。后台保存配置时必须使用 `SetFromAdmin`，因此修改只读项会返回 `ErrReadOnly`；业务代码可使用 `Set` 持久化到 MongoDB，或使用 `SetLocal` 只在当前进程生效。
+
 ## 读取和写入
 
 ```go
@@ -107,6 +109,12 @@ value, err := zc.GetAny("custom_key")
 err = zc.SetString("site_name", "HAXI")
 err = zc.SetInt64("withdraw_min_amount", 100)
 err = zc.SetBool("withdraw_enabled", true)
+
+// 后台保存配置时使用；ReadOnly=true 会返回 ErrReadOnly。
+err = zc.SetFromAdmin("site_name", "HAXI")
+
+// 业务代码本地覆盖，不写入 MongoDB，直到 ClearLocal 后失效。
+err = zc.SetLocalString("site_name", "HAXI-dev")
 ```
 
 读取顺序：

@@ -11,4 +11,5 @@ var (
 	ErrValueTypeMismatch = errors.New("config value type mismatch")
 	ErrRequired          = errors.New("required config value cannot be empty")
 	ErrRegExpMismatch    = errors.New("config value does not match regexp")
+	ErrReadOnly          = errors.New("config is read-only")
 )
