@@ -1,0 +1,26 @@
+[
+  {
+    "group": "payment",
+    "type": 5,
+    "title": "Minimum withdrawal amount",
+    "key": "withdraw_min_amount",
+    "explain": "Minimum amount allowed for a withdrawal",
+    "vType": "number",
+    "defaultValue": 10,
+    "isRequired": true,
+    "regExp": "^[0-9]+$",
+    "cacheTime": 60
+  },
+  {
+    "group": "payment",
+    "type": 1,
+    "title": "Withdraw enabled",
+    "key": "withdraw_enabled",
+    "explain": "Whether withdrawals are enabled",
+    "vType": "boolean",
+    "defaultValue": true,
+    "isRequired": false,
+    "regExp": "",
+    "cacheTime": 0
+  }
+]
