@@ -89,3 +89,22 @@ func TestCommonRegExps(t *testing.T) {
 		})
 	}
 }
+
+func TestValuesUnmarshal(t *testing.T) {
+	values := newValues(map[string]any{
+		"site_name":       "HAXI",
+		"withdraw_enabled": true,
+		"withdraw_min":     int64(100),
+	})
+	var target struct {
+		Name    string `json:"site_name"`
+		Enabled bool   `json:"withdraw_enabled"`
+		Minimum int64  `json:"withdraw_min"`
+	}
+	if err := values.Unmarshal(&target); err != nil {
+		t.Fatal(err)
+	}
+	if target.Name != "HAXI" || !target.Enabled || target.Minimum != 100 {
+		t.Fatalf("got %#v", target)
+	}
+}

@@ -145,6 +145,13 @@ err = zc.SetBool("withdraw_enabled", true)
 values, err := zc.GetType([]string{"site_name", "withdraw_enabled"})
 name, err := values.GetString("site_name")
 raw := values.Map()
+
+// 按 json 标签映射到结构体。
+var payment struct {
+    Enabled bool  `json:"withdraw_enabled"`
+    Minimum int64 `json:"withdraw_min_amount"`
+}
+err = values.Unmarshal(&payment)
 ```
 
 按分组：

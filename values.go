@@ -1,6 +1,9 @@
 package zconfig
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // Values is an immutable snapshot returned by a batch query.
 type Values struct {
@@ -72,4 +75,18 @@ func (v *Values) Len() int {
 		return 0
 	}
 	return len(v.values)
+}
+
+// Unmarshal copies this snapshot into target using JSON field names and json
+// tags. Target must be a non-nil pointer to a struct, map, or other value
+// accepted by json.Unmarshal.
+func (v *Values) Unmarshal(target any) error {
+	data, err := json.Marshal(v.Map())
+	if err != nil {
+		return fmt.Errorf("marshal config values: %w", err)
+	}
+	if err := json.Unmarshal(data, target); err != nil {
+		return fmt.Errorf("unmarshal config values: %w", err)
+	}
+	return nil
 }
